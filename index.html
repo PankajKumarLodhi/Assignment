@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Customer Management</title>
+</head>
+<body>
+  <h1>Login</h1>
+  <form id="loginForm">
+    <label for="login_id">Login ID:</label>
+    <input type="text" id="login_id" required><br>
+    <label for="password">Password:</label>
+    <input type="password" id="password" required><br>
+    <button type="submit">Login</button>
+  </form>
+
+  <h1>Customer List</h1>
+  <table id="customerTable" border="1">
+    <thead>
+      <tr>
+        <th>First Name</th>
+        <th>Last Name</th>
+        <th>Street</th>
+        <th>Address</th>
+        <th>City</th>
+        <th>State</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="customerList">
+      <!-- Customer data will be added dynamically here -->
+    </tbody>
+  </table>
+
+  <h1>Add a New Customer</h1>
+  <form id="addCustomerForm">
+    <label for="first_name">First Name:</label>
+    <input type="text" id="first_name" required><br>
+    <label for="last_name">Last Name:</label>
+    <input type="text" id="last_name" required><br>
+    <label for="street">Street:</label>
+    <input type="text" id="street" required><br>
+    <label for="address">Address:</label>
+    <input type="text" id="address" required><br>
+    <label for="city">City:</label>
+    <input type="text" id="city" required><br>
+    <label for="state">State:</label>
+    <input type="text" id="state" required><br>
+    <label for="email">Email:</label>
+    <input type="email" id="email" required><br>
+    <label for="phone">Phone:</label>
+    <input type="text" id="phone" required><br>
+    <button type="submit">Add Customer</button>
+  </form>
+
+  <script>
+    const BASE_URL = "https://qa2.sunbasedata.com/sunbase/portal/api";
+    let bearerToken = null;
+
+    // Helper function to make API calls
+    async function makeApiCall(path, method, body = null) {
+      const headers = new Headers();
+      if (bearerToken) {
+        headers.append("Authorization", `Bearer ${bearerToken}`);
+      }
+
+      const requestOptions = {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : null,
+      };
+
+      const response = await fetch(`${BASE_URL}/${path}`, requestOptions);
+
+      if (response.status === 401) {
+        alert("Invalid Authorization. Please login again.");
+        location.reload();
+      }
+
+      return response.json();
+    }
+
+    // Login form submission
+    document.getElementById("loginForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const loginId = document.getElementById("login_id").value;
+      const password = document.getElementById("password").value;
+
+      const body = { login_id: loginId, password: password };
+      const response = await makeApiCall("assignment_auth.jsp", "POST", body);
+
+      if (response.token) {
+        bearerToken = response.token;
+        loadCustomerList();
+      } else {
+        alert("Authentication failed. Please check your credentials.");
+      }
+    });
+
+    // Load customer list
+    async function loadCustomerList() {
+      const response = await makeApiCall("assignment.jsp?cmd=get_customer_list", "GET");
+      const customerList = response || [];
+
+      const customerTable = document.getElementById("customerList");
+      customerTable.innerHTML = ""; // Clear previous data
+
+      customerList.forEach((customer) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${customer.first_name}</td>
+          <td>${customer.last_name}</td>
+          <td>${customer.street}</td>
+          <td>${customer.address}</td>
+          <td>${customer.city}</td>
+          <td>${customer.state}</td>
+          <td>${customer.email}</td>
+          <td>${customer.phone}</td>
+          <td>
+            <button onclick="deleteCustomer('${customer.uuid}')">Delete</button>
+            <button onclick="updateCustomer('${customer.uuid}')">Update</button>
+          </td>
+        `;
+        customerTable.appendChild(row);
+      });
+    }
+
+    // Add a new customer form submission
+    document.getElementById("addCustomerForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const firstName = document.getElementById("first_name").value;
+      const lastName = document.getElementById("last_name").value;
+      // Retrieve other customer data fields similarly
+
+      const body = {
+        first_name: firstName,
+        last_name: lastName,
+        // Add other customer data fields to the body
+      };
+
+      const response = await makeApiCall("assignment.jsp?cmd=create", "POST", body);
+
+      if (response === "Successfully Created") {
+        loadCustomerList();
+        alert("Customer created successfully.");
+      } else {
+        alert("Failed to create customer.");
+      }
+    });
+
+    // Delete a customer
+    async function deleteCustomer(uuid) {
+      const body = { cmd: "delete", uuid };
+      const response = await makeApiCall("assignment.jsp", "POST", body);
+
+      if (response === "Successfully deleted") {
+        loadCustomerList();
+        alert("Customer deleted successfully.");
+      } else {
+        alert("Failed to delete customer.");
+      }
+    }
+
+    // Update a customer
+    async function updateCustomer(uuid) {
+      const firstName = prompt("Enter updated First Name:");
+      const lastName = prompt("Enter updated Last Name:");
+      // Retrieve other updated customer data fields similarly
+
+      const body = {
+        cmd: "update",
+        uuid,
+        first_name: firstName,
+        last_name: lastName,
+        // Add other updated customer data fields to the body
+      };
+
+      const response = await makeApiCall("assignment.jsp", "POST", body);
+
+      if (response === "Successfully Updated") {
+        loadCustomerList();
+        alert("Customer updated successfully.");
+      } else {
+        alert("Failed to update customer.");
+      }
+    }
+
+    // Initial load on page load if token already exists
+    if (bearerToken) {
+      loadCustomerList();
+    }
+  </script>
+</body>
+</html>
